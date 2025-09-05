@@ -1,7 +1,9 @@
 package com.example.basicscodelab
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -28,10 +30,12 @@ fun WidgetSelectionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())  // <-- Add this
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Select Widgets", style = MaterialTheme.typography.headlineSmall)
+
+    Text("Select Widgets", style = MaterialTheme.typography.headlineSmall)
 
         widgetOptions.forEach { widget ->
             Row(

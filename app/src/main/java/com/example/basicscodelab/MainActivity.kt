@@ -16,6 +16,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.basicscodelab.ui.theme.BasicsCodelabTheme
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateListOf
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 
 class MainActivity : ComponentActivity() {
@@ -23,6 +26,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+
+        // Hides system bars?  ideally allows swipe to reveal  works lol!
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.systemBars())
 
         setContent {
             BasicsCodelabTheme {
@@ -58,7 +68,7 @@ class MainActivity : ComponentActivity() {
                             PreviewScreen(navController, widgetStates)
                         }
                         composable(Screen.Export.route) {
-                            ExportScreen(navController)
+                            ExportScreen(navController, widgetStates)
                         }
                     }
                 }

@@ -20,8 +20,9 @@ import com.example.basicscodelab.util.LockScreenOrientation
 data class Widget(
     val id: Int,
     val label: String,
-    var position: Offset = Offset(50f, 50f)
-)
+) {
+    var position by mutableStateOf(Offset(50f, 50f))
+}
 
 @Composable
 fun LayoutScreen(
@@ -29,13 +30,21 @@ fun LayoutScreen(
     selectedWidgets: List<String>,
     widgetStates: MutableList<Widget>
 ) {
-    LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
     LaunchedEffect(selectedWidgets) {
-        widgetStates.clear()
+        // preserve existing positions where labels match
+        val byLabel = widgetStates.associateBy { it.label }.toMutableMap()
+        val newList = mutableListOf<Widget>()
         selectedWidgets.forEachIndexed { index, label ->
-            widgetStates.add(Widget(id = index, label = label))
+            val existing = byLabel.remove(label)
+            if (existing != null) {
+                newList.add(existing)
+            } else {
+                newList.add(Widget(id = index, label = label))
+            }
         }
+        widgetStates.clear()
+        widgetStates.addAll(newList)
     }
 
     Box(
@@ -61,18 +70,15 @@ fun LayoutScreen(
 
 @Composable
 fun DraggableWidget(widget: Widget) {
-    var offset by remember { mutableStateOf(widget.position) }
-
     Box(
         modifier = Modifier
-            .offset { offset.toIntOffset() }
+            .offset { widget.position.toIntOffset() }
             .size(100.dp)
             .background(Color.DarkGray)
             .pointerInput(Unit) {
                 detectDragGestures { change, dragAmount ->
                     change.consume()
-                    offset += dragAmount
-                    widget.position = offset
+                    widget.position += dragAmount   // update the single source of truth
                 }
             },
         contentAlignment = Alignment.Center
