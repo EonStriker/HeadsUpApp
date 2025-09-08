@@ -16,6 +16,10 @@ import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import android.content.pm.ActivityInfo
 import com.example.basicscodelab.util.LockScreenOrientation
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.draw.drawBehind
 
 data class Widget(
     val id: Int,
@@ -30,6 +34,11 @@ fun LayoutScreen(
     selectedWidgets: List<String>,
     widgetStates: MutableList<Widget>
 ) {
+    // grid settings
+    val gridSizeDp = 24.dp
+    val density = LocalDensity.current
+    val gridPx = with(density) { gridSizeDp.toPx() }
+    var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     LaunchedEffect(selectedWidgets) {
         // preserve existing positions where labels match
@@ -50,10 +59,16 @@ fun LayoutScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .onSizeChanged { canvasSize = it }
+            .background(Color.Black)   // background first
+            .drawGrid(gridPx)          // grid on top so it's visible
     ) {
         widgetStates.forEach { widget ->
-            DraggableWidget(widget)
+            DraggableWidget(
+                widget = widget,
+                canvasSize = canvasSize,
+                gridPx = gridPx
+            )
         }
 
         Row(modifier = Modifier.padding(16.dp)) {
@@ -69,17 +84,36 @@ fun LayoutScreen(
 }
 
 @Composable
-fun DraggableWidget(widget: Widget) {
+fun DraggableWidget(
+    widget: Widget,
+    canvasSize: IntSize,
+    gridPx: Float
+) {
+    val widgetSizeDp = 100.dp
+    val density = LocalDensity.current
+    val widgetSizePx = with(density) { widgetSizeDp.toPx() }
+
     Box(
         modifier = Modifier
             .offset { widget.position.toIntOffset() }
-            .size(100.dp)
+            .size(widgetSizeDp)
             .background(Color.DarkGray)
-            .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    widget.position += dragAmount   // update the single source of truth
-                }
+            .pointerInput(canvasSize, gridPx) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val next = widget.position + dragAmount
+                        widget.position = clampToBounds(next, canvasSize, widgetSizePx)
+                    },
+                    onDragEnd = {
+                        widget.position = snapToGrid(
+                            widget.position,
+                            gridPx,
+                            canvasSize,
+                            widgetSizePx
+                        )
+                    }
+                )
             },
         contentAlignment = Alignment.Center
     ) {
@@ -92,3 +126,42 @@ fun DraggableWidget(widget: Widget) {
 }
 
 fun Offset.toIntOffset() = IntOffset(x.roundToInt(), y.roundToInt())
+
+private fun clampToBounds(p: Offset, canvas: IntSize, sizePx: Float): Offset {
+    val maxX = (canvas.width - sizePx).coerceAtLeast(0f)
+    val maxY = (canvas.height - sizePx).coerceAtLeast(0f)
+    val x = p.x.coerceIn(0f, maxX)
+    val y = p.y.coerceIn(0f, maxY)
+    return Offset(x, y)
+}
+
+private fun snapToGrid(p: Offset, gridPx: Float, canvas: IntSize, sizePx: Float): Offset {
+    if (gridPx <= 0f) return p
+    val snappedX = (p.x / gridPx).roundToInt() * gridPx
+    val snappedY = (p.y / gridPx).roundToInt() * gridPx
+    return clampToBounds(Offset(snappedX, snappedY), canvas, sizePx)
+}
+
+private fun Modifier.drawGrid(gridPx: Float): Modifier = drawBehind {
+    if (gridPx <= 0f) return@drawBehind
+    var x = 0f
+    while (x <= size.width) {
+        drawLine(
+            color = Color(0x44FFFFFF), // slightly brighter than before
+            start = Offset(x, 0f),
+            end = Offset(x, size.height),
+            strokeWidth = 1f
+        )
+        x += gridPx
+    }
+    var y = 0f
+    while (y <= size.height) {
+        drawLine(
+            color = Color(0x44FFFFFF),
+            start = Offset(0f, y),
+            end = Offset(size.width, y),
+            strokeWidth = 1f
+        )
+        y += gridPx
+    }
+}
