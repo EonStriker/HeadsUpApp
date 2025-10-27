@@ -22,7 +22,11 @@ import com.example.basicscodelab.util.sendJsonToPi
 
 
 @Composable
-fun ExportScreen(navController: NavController, widgets: List<Widget>) {
+fun ExportScreen(
+    navController: NavController,
+    widgets: List<Widget>,
+    useMetric: MutableState<Boolean>
+) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
     val context = LocalContext.current
 
@@ -35,7 +39,6 @@ fun ExportScreen(navController: NavController, widgets: List<Widget>) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Export Configuration", color = Color.White)
-
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(onClick = {
@@ -50,6 +53,7 @@ fun ExportScreen(navController: NavController, widgets: List<Widget>) {
                     widgetArray.put(obj)
                 }
                 put("widgets", widgetArray)
+                put("useMetric", if (useMetric.value) 1 else 0)
             }
 
             CoroutineScope(Dispatchers.IO).launch {

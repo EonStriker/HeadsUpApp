@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.PrintWriter
 import java.net.URL
@@ -36,4 +37,33 @@ suspend fun sendJsonToPi(json: JSONObject, context: Context) {
             Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
+}
+
+// attempt at second portion GET
+suspend fun fetchDataTypesFromPi(
+    url: String = "https://headsup.local:8443/data-types"
+): List<String> = withContext(Dispatchers.IO) {
+    val connection = (URL(url).openConnection() as HttpsURLConnection).apply {
+        requestMethod = "GET"
+        // Prefer text, but accept anything
+        setRequestProperty("Accept", "text/plain, */*;q=0.8")
+        doInput = true
+    }
+    try {
+        val body = connection.inputStream.bufferedReader().use { it.readText() }
+        parseCsvTypes(body)
+    } finally {
+        connection.disconnect()
+    }
+}
+
+// new attempt at parsing
+private fun parseCsvTypes(raw: String): List<String> {
+    val tokens = raw.replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .split(',', '\n')
+        .map { it.trim().trim('"', '\'') }
+        .filter { it.isNotEmpty() }
+
+    return LinkedHashSet(tokens).toList()
 }

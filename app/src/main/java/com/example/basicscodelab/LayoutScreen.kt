@@ -20,12 +20,20 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.clickable
+import kotlin.math.floor
+import kotlin.math.round
+
+enum class GaugeType { BAR, SWEEPING, NUMBER }
+
 
 data class Widget(
     val id: Int,
     val label: String,
 ) {
     var position by mutableStateOf(Offset(50f, 50f))
+    var gaugeType by mutableStateOf(GaugeType.SWEEPING)
 }
 
 @Composable
@@ -38,10 +46,16 @@ fun LayoutScreen(
     val gridSizeDp = 24.dp
     val density = LocalDensity.current
     val gridPx = with(density) { gridSizeDp.toPx() }
+
+    // make each widget an exact multiple of the grid so edges align
+    val cellsPerWidget = 4
+    val widgetSizeDp = gridSizeDp * cellsPerWidget
+    val widgetSizePx = with(density) { widgetSizeDp.toPx() }
+
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     LaunchedEffect(selectedWidgets) {
-        // preserve existing positions where labels match
+        // preserve existing positions and gauge types where labels match
         val byLabel = widgetStates.associateBy { it.label }.toMutableMap()
         val newList = mutableListOf<Widget>()
         selectedWidgets.forEachIndexed { index, label ->
@@ -60,14 +74,16 @@ fun LayoutScreen(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { canvasSize = it }
-            .background(Color.Black)   // background first
-            .drawGrid(gridPx)          // grid on top so it's visible
+            .background(Color.Black)   // draw background first
+            .drawGrid(gridPx)          // then draw the grid so it stays visible
     ) {
         widgetStates.forEach { widget ->
             DraggableWidget(
                 widget = widget,
                 canvasSize = canvasSize,
-                gridPx = gridPx
+                gridPx = gridPx,
+                widgetSizeDp = widgetSizeDp,
+                widgetSizePx = widgetSizePx
             )
         }
 
@@ -87,16 +103,14 @@ fun LayoutScreen(
 fun DraggableWidget(
     widget: Widget,
     canvasSize: IntSize,
-    gridPx: Float
+    gridPx: Float,
+    widgetSizeDp: Dp,
+    widgetSizePx: Float
 ) {
-    val widgetSizeDp = 100.dp
-    val density = LocalDensity.current
-    val widgetSizePx = with(density) { widgetSizeDp.toPx() }
-
     Box(
         modifier = Modifier
             .offset { widget.position.toIntOffset() }
-            .size(widgetSizeDp)
+            .size(widgetSizeDp) // exact multiple of the grid
             .background(Color.DarkGray)
             .pointerInput(canvasSize, gridPx) {
                 detectDragGestures(
@@ -106,7 +120,7 @@ fun DraggableWidget(
                         widget.position = clampToBounds(next, canvasSize, widgetSizePx)
                     },
                     onDragEnd = {
-                        widget.position = snapToGrid(
+                        widget.position = snapToGridClamped(
                             widget.position,
                             gridPx,
                             canvasSize,
@@ -117,11 +131,30 @@ fun DraggableWidget(
             },
         contentAlignment = Alignment.Center
     ) {
+        // Center label
         Text(
             widget.label,
             color = Color.White,
             style = MaterialTheme.typography.bodyLarge
         )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(6.dp)
+                .background(Color(0x66000000), shape = MaterialTheme.shapes.small)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .clickable {
+                    val all = GaugeType.values()
+                    val i = all.indexOf(widget.gaugeType)
+                    widget.gaugeType = all[(i + 1) % all.size]
+                }
+        ) {
+            Text(
+                text = widget.gaugeType.name.lowercase(), // "bar" / "sweeping" / "number"
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
     }
 }
 
@@ -135,33 +168,45 @@ private fun clampToBounds(p: Offset, canvas: IntSize, sizePx: Float): Offset {
     return Offset(x, y)
 }
 
-private fun snapToGrid(p: Offset, gridPx: Float, canvas: IntSize, sizePx: Float): Offset {
-    if (gridPx <= 0f) return p
-    val snappedX = (p.x / gridPx).roundToInt() * gridPx
-    val snappedY = (p.y / gridPx).roundToInt() * gridPx
-    return clampToBounds(Offset(snappedX, snappedY), canvas, sizePx)
+private fun snapToGridClamped(
+    p: Offset,
+    gridPx: Float,
+    canvas: IntSize,
+    sizePx: Float
+): Offset {
+    if (gridPx <= 0f) return clampToBounds(p, canvas, sizePx)
+    val maxStepsX = floor((canvas.width - sizePx) / gridPx).toInt().coerceAtLeast(0)
+    val maxStepsY = floor((canvas.height - sizePx) / gridPx).toInt().coerceAtLeast(0)
+    val stepX = (p.x / gridPx).roundToInt().coerceIn(0, maxStepsX)
+    val stepY = (p.y / gridPx).roundToInt().coerceIn(0, maxStepsY)
+    return Offset(stepX * gridPx, stepY * gridPx)
 }
 
 private fun Modifier.drawGrid(gridPx: Float): Modifier = drawBehind {
     if (gridPx <= 0f) return@drawBehind
-    var x = 0f
-    while (x <= size.width) {
-        drawLine(
-            color = Color(0x44FFFFFF), // slightly brighter than before
-            start = Offset(x, 0f),
-            end = Offset(x, size.height),
-            strokeWidth = 1f
-        )
-        x += gridPx
-    }
-    var y = 0f
-    while (y <= size.height) {
+
+    // vertical lines
+    val cols = floor(size.width / gridPx).toInt()
+    for (i in 0..cols) {
+        val x = i * gridPx
+        val xi = round(x)
         drawLine(
             color = Color(0x44FFFFFF),
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
+            start = Offset(xi, 0f),
+            end = Offset(xi, size.height),
             strokeWidth = 1f
         )
-        y += gridPx
+    }
+    // horizontal lines
+    val rows = floor(size.height / gridPx).toInt()
+    for (j in 0..rows) {
+        val y = j * gridPx
+        val yj = round(y)
+        drawLine(
+            color = Color(0x44FFFFFF),
+            start = Offset(0f, yj),
+            end = Offset(size.width, yj),
+            strokeWidth = 1f
+        )
     }
 }

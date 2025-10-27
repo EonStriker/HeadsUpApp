@@ -20,8 +20,8 @@ fun WelcomeScreen(navController: NavController) {
         Text("Welcome to HUD Configurator!", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ✅ Changed navigation target to WidgetSelection
-        Button(onClick = { navController.navigate(Screen.WidgetSelection.route) }) {
+
+        Button(onClick = { navController.navigate(Screen.DataTypesSetup.route) }) {
             Text("Start Configuring")
         }
 

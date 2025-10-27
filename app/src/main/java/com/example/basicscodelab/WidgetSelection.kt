@@ -2,85 +2,100 @@ package com.example.basicscodelab
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.runtime.snapshots.SnapshotStateList
 
 @Composable
 fun WidgetSelectionScreen(
     navController: NavController,
-    selectedWidgets: List<String>,
+    availableWidgets: List<String>,     
+    selectedWidgets: SnapshotStateList<String>,
     onWidgetsSelected: (List<String>) -> Unit
 ) {
-    val widgetOptions = listOf("Speed", "RPM", "Temperature", "Fuel", "Battery Voltage", "Coolant Temp")
+    val scrollState = rememberScrollState()
 
-    // Track which checkboxes are selected
-    val selections = remember {
-        mutableStateMapOf<String, Boolean>().apply {
-            widgetOptions.forEach { widget ->
-                this[widget] = selectedWidgets.contains(widget)
-            }
-        }
+    // Local selection state copied from selectedWidgets
+    val currentSelection = remember { mutableStateListOf<String>() }
+
+    // Sync initial state with passed selections
+    LaunchedEffect(selectedWidgets) {
+        currentSelection.clear()
+        currentSelection.addAll(selectedWidgets)
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())  // <-- Add this
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(24.dp)
+            .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = "Select Your Widgets",
+            style = MaterialTheme.typography.headlineSmall
+        )
 
-    Text("Select Widgets", style = MaterialTheme.typography.headlineSmall)
-
-        widgetOptions.forEach { widget ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .toggleable(
-                        value = selections[widget] == true,
-                        onValueChange = { selections[widget] = it }
-                    ),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = widget)
-                Checkbox(
-                    checked = selections[widget] == true,
-                    onCheckedChange = null // Handled by toggleable
-                )
+        if (availableWidgets.isEmpty()) {
+            Text(
+                "No widgets available. Try going back and importing data types first.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        } else {
+            // list available widget checkboxes
+            availableWidgets.forEach { widgetName ->
+                val isChecked = currentSelection.contains(widgetName)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = isChecked,
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                if (!currentSelection.contains(widgetName))
+                                    currentSelection.add(widgetName)
+                            } else {
+                                currentSelection.remove(widgetName)
+                            }
+                        }
+                    )
+                    Text(
+                        text = widgetName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        // Continue button
+        Button(
+            onClick = {
+                onWidgetsSelected(currentSelection)
+                navController.navigate(Screen.Layout.route)
+            },
+            enabled = availableWidgets.isNotEmpty()
         ) {
-            Button(
-                onClick = {
-                    navController.navigate(Screen.Welcome.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
-                    }
-                }
-            ) {
-                Text("Back")
-            }
+            Text("Continue to Layout")
+        }
 
-            Button(
-                onClick = {
-                    val selected = selections.filterValues { it }.keys.toList()
-                    onWidgetsSelected(selected)
-                    navController.navigate(Screen.Layout.route)
-                },
-                enabled = selections.containsValue(true)
-            ) {
-                Text("Next")
-            }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Back button
+        TextButton(onClick = { navController.popBackStack() }) {
+            Text("Back")
         }
     }
 }

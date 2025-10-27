@@ -8,51 +8,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 
-// , isDarkTheme: Boolean, onThemeToggle: () -> Unit
 @Composable
-fun SettingsScreen(navController: NavController) {
-    var useMetric by remember { mutableStateOf(true) }
-
+fun SettingsScreen(navController: NavController, useMetric: MutableState<Boolean>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
-        verticalArrangement = Arrangement.Top
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineSmall)
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Toggle: Units
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            horizontalArrangement = Arrangement.Center
         ) {
-            Text("Use Metric Units")
-            Spacer(modifier = Modifier.weight(1f))
-            Switch(checked = useMetric, onCheckedChange = { useMetric = it })
+            Text("Units: ", style = MaterialTheme.typography.bodyLarge)
+            Switch(
+                checked = useMetric.value,
+                onCheckedChange = { useMetric.value = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.error
+                )
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (useMetric.value) "Metric" else "Imperial",
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // Toggle: Dark Theme
-        /*Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Dark Theme", modifier = Modifier.weight(1f))
-            Switch(
-                checked = isDarkTheme,
-                onCheckedChange = { onThemeToggle() }
-            )
-        }*/
-
-        // Spacer(modifier = Modifier.height(32.dp))
-
-        // Back Button
         Button(onClick = { navController.popBackStack() }) {
             Text("Back")
         }
     }
 }
-
