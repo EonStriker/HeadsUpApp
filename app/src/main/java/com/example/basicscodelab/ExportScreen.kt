@@ -49,6 +49,7 @@ fun ExportScreen(
                         put("label", widget.label)
                         put("x", widget.position.x)
                         put("y", widget.position.y)
+                        put("type", widget.gaugeType.name.lowercase())
                     }
                     widgetArray.put(obj)
                 }
