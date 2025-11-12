@@ -24,16 +24,28 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.clickable
 import kotlin.math.floor
 import kotlin.math.round
+import androidx.compose.ui.zIndex
 
-enum class GaugeType { BAR, SWEEPING, NUMBER }
+enum class GaugeType { BAR, SWEEPING, NUMBER } // guage types
 
+val widgetPalette = listOf(  // list of colors
+    0xFFFFFFFF.toInt(), // white
+    0xFFFF5722.toInt(), // red-ish orange (depends who you ask)
+    0xFF4CAF50.toInt(), // green
+    0xFF03A9F4.toInt(), // blue
+    0xFFFFEB3B.toInt()  // yellow
+)
+
+val sizeSteps = listOf(0.75f, 1.0f, 1.25f) // list of different sizes for gauge
 
 data class Widget(
     val id: Int,
     val label: String,
 ) {
-    var position by mutableStateOf(Offset(50f, 50f))
-    var gaugeType by mutableStateOf(GaugeType.SWEEPING)
+    var position by mutableStateOf(Offset(50f, 50f)) // default top left-ish
+    var gaugeType by mutableStateOf(GaugeType.SWEEPING) // default sweeping
+    var colorRGB by mutableStateOf(0xFFFFFFFF.toInt())   // default white
+    var scale by mutableStateOf(1.0f) // default regular (M or x1.00) size
 }
 
 @Composable
@@ -47,12 +59,15 @@ fun LayoutScreen(
     val density = LocalDensity.current
     val gridPx = with(density) { gridSizeDp.toPx() }
 
-    // make each widget an exact multiple of the grid so edges align
+    // make each widget an exact multiple of the grid so edges actually align
     val cellsPerWidget = 4
     val widgetSizeDp = gridSizeDp * cellsPerWidget
     val widgetSizePx = with(density) { widgetSizeDp.toPx() }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+
+    // selection
+    var selectedId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(selectedWidgets) {
         // preserve existing positions and gauge types where labels match
@@ -68,6 +83,10 @@ fun LayoutScreen(
         }
         widgetStates.clear()
         widgetStates.addAll(newList)
+        // clear selection if it no longer exists
+        if (selectedId != null && widgetStates.none { it.id == selectedId }) {
+            selectedId = null
+        }
     }
 
     Box(
@@ -83,8 +102,73 @@ fun LayoutScreen(
                 canvasSize = canvasSize,
                 gridPx = gridPx,
                 widgetSizeDp = widgetSizeDp,
-                widgetSizePx = widgetSizePx
+                widgetSizePx = widgetSizePx,
+                selected = selectedId == widget.id,
+                onSelect = { selectedId = widget.id }
             )
+        }
+
+        // floating toolbar for the widget last tapped wooooo! goes in order Type / Color / Size
+        val sel = remember(selectedId, widgetStates) {
+            widgetStates.firstOrNull { it.id == selectedId }
+        }
+        if (sel != null) {
+            val barHeightDp = 32.dp
+            val barPadDp = 6.dp
+            val barWidthPx = 200 // simple clamp width estimate
+            val liftPx = with(density) { (barHeightDp + barPadDp).toPx() }
+            val x = sel.position.x.roundToInt()
+            val y = (sel.position.y - liftPx).roundToInt()
+            val clampedX = x.coerceIn(0, canvasSize.width - barWidthPx)
+            val clampedY = y.coerceAtLeast(0)
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(clampedX, clampedY) }
+                    .background(Color(0xAA000000), shape = MaterialTheme.shapes.small)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .zIndex(2f)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        sel.gaugeType.name.lowercase(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.clickable {
+                            val all = GaugeType.values()
+                            val i = all.indexOf(sel.gaugeType)
+                            sel.gaugeType = all[(i + 1) % all.size]
+                        }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        Modifier
+                            .size(14.dp)
+                            .background(Color(sel.colorRGB), shape = MaterialTheme.shapes.extraSmall)
+                            .clickable {
+                                val idx = widgetPalette.indexOf(sel.colorRGB).let { if (it < 0) 0 else it }
+                                sel.colorRGB = widgetPalette[(idx + 1) % widgetPalette.size]
+                            }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        when (sel.scale) {
+                            0.75f -> "S" // can change later to add more sizes or to change descriptor (x0.75, x1.00, x1.25 etc.)
+                            1.0f -> "M"
+                            1.25f -> "L"
+                            else -> "${(sel.scale * 100).toInt()}%"
+                        },
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.clickable {
+                            val idx = sizeSteps.indexOfFirst { it == sel.scale }.let { if (it < 0) 1 else it }
+                            sel.scale = sizeSteps[(idx + 1) % sizeSteps.size]
+                            // snap to grid after resize
+                            sel.position = snapToGridClamped(sel.position, gridPx, canvasSize, widgetSizePx * sel.scale)
+                        }
+                    )
+                }
+            }
         }
 
         Row(modifier = Modifier.padding(16.dp)) {
@@ -105,56 +189,46 @@ fun DraggableWidget(
     canvasSize: IntSize,
     gridPx: Float,
     widgetSizeDp: Dp,
-    widgetSizePx: Float
+    widgetSizePx: Float,
+    selected: Boolean,
+    onSelect: () -> Unit
 ) {
+    val scaledSizeDp = widgetSizeDp * widget.scale
+    val scaledSizePx = widgetSizePx * widget.scale
+
     Box(
         modifier = Modifier
             .offset { widget.position.toIntOffset() }
-            .size(widgetSizeDp) // exact multiple of the grid
+            .size(scaledSizeDp) // exact multiple of the grid
             .background(Color.DarkGray)
-            .pointerInput(canvasSize, gridPx) {
+            .pointerInput(canvasSize, gridPx, widget.scale) {
                 detectDragGestures(
+                    onDragStart = { onSelect() },
                     onDrag = { change, dragAmount ->
                         change.consume()
                         val next = widget.position + dragAmount
-                        widget.position = clampToBounds(next, canvasSize, widgetSizePx)
+                        widget.position = clampToBounds(next, canvasSize, scaledSizePx)
                     },
                     onDragEnd = {
                         widget.position = snapToGridClamped(
                             widget.position,
                             gridPx,
                             canvasSize,
-                            widgetSizePx
+                            scaledSizePx
                         )
                     }
                 )
-            },
+            }
+            .clickable { onSelect() }
+            .zIndex(if (selected) 1f else 0f),
         contentAlignment = Alignment.Center
     ) {
         // Center label
         Text(
             widget.label,
-            color = Color.White,
+            color = Color(widget.colorRGB),
             style = MaterialTheme.typography.bodyLarge
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(6.dp)
-                .background(Color(0x66000000), shape = MaterialTheme.shapes.small)
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .clickable {
-                    val all = GaugeType.values()
-                    val i = all.indexOf(widget.gaugeType)
-                    widget.gaugeType = all[(i + 1) % all.size]
-                }
-        ) {
-            Text(
-                text = widget.gaugeType.name.lowercase(), // "bar" / "sweeping" / "number"
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
     }
 }
 

@@ -50,6 +50,8 @@ fun ExportScreen(
                         put("x", widget.position.x)
                         put("y", widget.position.y)
                         put("type", widget.gaugeType.name.lowercase())
+                        put("color", widget.colorRGB)
+                        put("scale", widget.scale)
                     }
                     widgetArray.put(obj)
                 }
