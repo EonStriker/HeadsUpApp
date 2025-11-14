@@ -26,26 +26,27 @@ import kotlin.math.floor
 import kotlin.math.round
 import androidx.compose.ui.zIndex
 
-enum class GaugeType { BAR, SWEEPING, NUMBER } // guage types
+enum class GaugeType { BAR, SWEEPING, NUMBER }
 
-val widgetPalette = listOf(  // list of colors
+val widgetPalette = listOf(
     0xFFFFFFFF.toInt(), // white
-    0xFFFF5722.toInt(), // red-ish orange (depends who you ask)
+    0xFFFF5722.toInt(), // deep orange
     0xFF4CAF50.toInt(), // green
-    0xFF03A9F4.toInt(), // blue
+    0xFF03A9F4.toInt(), // light blue
     0xFFFFEB3B.toInt()  // yellow
 )
 
-val sizeSteps = listOf(0.75f, 1.0f, 1.25f) // list of different sizes for gauge
+val sizeSteps = listOf(0.75f, 1.0f, 1.25f)
 
 data class Widget(
     val id: Int,
     val label: String,
 ) {
-    var position by mutableStateOf(Offset(50f, 50f)) // default top left-ish
-    var gaugeType by mutableStateOf(GaugeType.SWEEPING) // default sweeping
+    var position by mutableStateOf(Offset(50f, 50f))
+    var gaugeType by mutableStateOf(GaugeType.SWEEPING)
     var colorRGB by mutableStateOf(0xFFFFFFFF.toInt())   // default white
-    var scale by mutableStateOf(1.0f) // default regular (M or x1.00) size
+    var scale by mutableStateOf(1.0f)
+    var showNumeric by mutableStateOf(false)
 }
 
 @Composable
@@ -59,7 +60,7 @@ fun LayoutScreen(
     val density = LocalDensity.current
     val gridPx = with(density) { gridSizeDp.toPx() }
 
-    // make each widget an exact multiple of the grid so edges actually align
+    // make each widget an exact multiple of the grid so edges align
     val cellsPerWidget = 4
     val widgetSizeDp = gridSizeDp * cellsPerWidget
     val widgetSizePx = with(density) { widgetSizeDp.toPx() }
@@ -108,14 +109,14 @@ fun LayoutScreen(
             )
         }
 
-        // floating toolbar for the widget last tapped wooooo! goes in order Type / Color / Size
+        // floating toolbar for the selected widget (Type / Color / Size / Numeric)
         val sel = remember(selectedId, widgetStates) {
             widgetStates.firstOrNull { it.id == selectedId }
         }
         if (sel != null) {
             val barHeightDp = 32.dp
             val barPadDp = 6.dp
-            val barWidthPx = 200 // simple clamp width estimate
+            val barWidthPx = 260 // slightly wider to fit checkbox
             val liftPx = with(density) { (barHeightDp + barPadDp).toPx() }
             val x = sel.position.x.roundToInt()
             val y = (sel.position.y - liftPx).roundToInt()
@@ -153,7 +154,7 @@ fun LayoutScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         when (sel.scale) {
-                            0.75f -> "S" // can change later to add more sizes or to change descriptor (x0.75, x1.00, x1.25 etc.)
+                            0.75f -> "S"
                             1.0f -> "M"
                             1.25f -> "L"
                             else -> "${(sel.scale * 100).toInt()}%"
@@ -167,6 +168,26 @@ fun LayoutScreen(
                             sel.position = snapToGridClamped(sel.position, gridPx, canvasSize, widgetSizePx * sel.scale)
                         }
                     )
+                    // only show numeric checkbox when gauge is not NUMBER
+                    if (sel.gaugeType != GaugeType.NUMBER) {
+                        Spacer(Modifier.width(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = sel.showNumeric,
+                                onCheckedChange = { sel.showNumeric = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color.White,
+                                    uncheckedColor = Color.White,
+                                    checkmarkColor = Color.Black
+                                )
+                            )
+                            Text(
+                                "num",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -199,7 +220,7 @@ fun DraggableWidget(
     Box(
         modifier = Modifier
             .offset { widget.position.toIntOffset() }
-            .size(scaledSizeDp) // exact multiple of the grid
+            .size(scaledSizeDp) // exact multiple of the grid (scaled)
             .background(Color.DarkGray)
             .pointerInput(canvasSize, gridPx, widget.scale) {
                 detectDragGestures(
