@@ -18,20 +18,44 @@ import kotlin.math.roundToInt
 fun PreviewScreen(navController: NavController, widgets: List<Widget>) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
+    // match LayoutScreen base size: gridSizeDp (24.dp) * cellsPerWidget (4)
+    val baseSizeDp = 24.dp * 4
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
         widgets.forEach { widget ->
+            val scaledSizeDp = baseSizeDp * widget.scale
+
             Box(
                 modifier = Modifier
                     .offset { IntOffset(widget.position.x.roundToInt(), widget.position.y.roundToInt()) }
-                    .size(100.dp)
+                    .size(scaledSizeDp)
                     .background(Color.DarkGray),
                 contentAlignment = Alignment.Center
             ) {
-                Text(widget.label, color = Color.White)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        widget.label,
+                        color = Color(widget.colorRGB)
+                    )
+
+                    // show numeric preview only when enabled and not a NUMBER gauge
+                    if (widget.showNumeric && widget.gaugeType != GaugeType.NUMBER) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        // placeholder numeric value for preview to show it indicates. maybe change later
+                        Text(
+                            "000",
+                            color = Color(widget.colorRGB),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             }
         }
 
