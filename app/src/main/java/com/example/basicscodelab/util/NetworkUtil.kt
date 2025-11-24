@@ -5,16 +5,17 @@ import android.util.Log
 import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
+//import org.json.JSONArray
 import org.json.JSONObject
 import java.io.PrintWriter
+import java.net.HttpURLConnection
 import java.net.URL
-import javax.net.ssl.HttpsURLConnection
+//import javax.net.ssl.HttpURLConnection
 
 suspend fun sendJsonToPi(json: JSONObject, context: Context) {
-    val url = URL("https://headsup.local:8443/upload")
+    val url = URL("http://headsup.local:4000/upload")
     try {
-        val connection = url.openConnection() as HttpsURLConnection
+        val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
         connection.setRequestProperty("Content-Type", "application/json")
         connection.doOutput = true
@@ -23,7 +24,7 @@ suspend fun sendJsonToPi(json: JSONObject, context: Context) {
 
         val responseCode = connection.responseCode
         withContext(Dispatchers.Main) {
-            if (responseCode == HttpsURLConnection.HTTP_OK) {
+            if (responseCode == HttpURLConnection.HTTP_OK) {
                 Toast.makeText(context, "Config sent to Pi!", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(context, "Send failed: $responseCode", Toast.LENGTH_LONG).show()
@@ -41,9 +42,9 @@ suspend fun sendJsonToPi(json: JSONObject, context: Context) {
 
 // attempt at second portion GET
 suspend fun fetchDataTypesFromPi(
-    url: String = "https://headsup.local:8443/data-types"
+    url: String = "http://headsup.local:4000/data-types"
 ): List<String> = withContext(Dispatchers.IO) {
-    val connection = (URL(url).openConnection() as HttpsURLConnection).apply {
+    val connection = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "GET"
         // Prefer text, but accept anything
         setRequestProperty("Accept", "text/plain, */*;q=0.8")

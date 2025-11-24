@@ -29,11 +29,11 @@ import androidx.compose.ui.zIndex
 enum class GaugeType { BAR, SWEEPING, NUMBER }
 
 val widgetPalette = listOf(
-    0xFFFFFFFF.toInt(), // white
-    0xFFFF5722.toInt(), // deep orange
-    0xFF4CAF50.toInt(), // green
-    0xFF03A9F4.toInt(), // light blue
-    0xFFFFEB3B.toInt()  // yellow
+    0xFFFFFFFF.toInt(),
+    0xFFFF5722.toInt(),
+    0xFF4CAF50.toInt(),
+    0xFF03A9F4.toInt(),
+    0xFFFFEB3B.toInt()
 )
 
 val sizeSteps = listOf(0.75f, 1.0f, 1.25f)
@@ -44,7 +44,7 @@ data class Widget(
 ) {
     var position by mutableStateOf(Offset(50f, 50f))
     var gaugeType by mutableStateOf(GaugeType.SWEEPING)
-    var colorRGB by mutableStateOf(0xFFFFFFFF.toInt())   // default white
+    var colorRGB by mutableStateOf(0xFFFFFFFF.toInt())
     var scale by mutableStateOf(1.0f)
     var showNumeric by mutableStateOf(false)
 }
@@ -53,25 +53,21 @@ data class Widget(
 fun LayoutScreen(
     navController: NavController,
     selectedWidgets: List<String>,
-    widgetStates: MutableList<Widget>
+    widgetStates: MutableList<Widget>,
+    onCanvasUpdate: (IntSize) -> Unit
 ) {
-    // grid settings
     val gridSizeDp = 24.dp
     val density = LocalDensity.current
     val gridPx = with(density) { gridSizeDp.toPx() }
 
-    // make each widget an exact multiple of the grid so edges align
     val cellsPerWidget = 4
     val widgetSizeDp = gridSizeDp * cellsPerWidget
     val widgetSizePx = with(density) { widgetSizeDp.toPx() }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
-
-    // selection
     var selectedId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(selectedWidgets) {
-        // preserve existing positions and gauge types where labels match
         val byLabel = widgetStates.associateBy { it.label }.toMutableMap()
         val newList = mutableListOf<Widget>()
         selectedWidgets.forEachIndexed { index, label ->
@@ -84,7 +80,6 @@ fun LayoutScreen(
         }
         widgetStates.clear()
         widgetStates.addAll(newList)
-        // clear selection if it no longer exists
         if (selectedId != null && widgetStates.none { it.id == selectedId }) {
             selectedId = null
         }
@@ -93,9 +88,12 @@ fun LayoutScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onSizeChanged { canvasSize = it }
-            .background(Color.Black)   // draw background first
-            .drawGrid(gridPx)          // then draw the grid so it stays visible
+            .onSizeChanged {
+                canvasSize = it
+                onCanvasUpdate(it)
+            }
+            .background(Color.Black)
+            .drawGrid(gridPx)
     ) {
         widgetStates.forEach { widget ->
             DraggableWidget(
@@ -109,14 +107,13 @@ fun LayoutScreen(
             )
         }
 
-        // floating toolbar for the selected widget (Type / Color / Size / Numeric)
         val sel = remember(selectedId, widgetStates) {
             widgetStates.firstOrNull { it.id == selectedId }
         }
         if (sel != null) {
             val barHeightDp = 32.dp
             val barPadDp = 6.dp
-            val barWidthPx = 260 // slightly wider to fit checkbox
+            val barWidthPx = 260
             val liftPx = with(density) { (barHeightDp + barPadDp).toPx() }
             val x = sel.position.x.roundToInt()
             val y = (sel.position.y - liftPx).roundToInt()
@@ -164,11 +161,14 @@ fun LayoutScreen(
                         modifier = Modifier.clickable {
                             val idx = sizeSteps.indexOfFirst { it == sel.scale }.let { if (it < 0) 1 else it }
                             sel.scale = sizeSteps[(idx + 1) % sizeSteps.size]
-                            // snap to grid after resize
-                            sel.position = snapToGridClamped(sel.position, gridPx, canvasSize, widgetSizePx * sel.scale)
+                            sel.position = snapToGridClamped(
+                                sel.position,
+                                gridPx,
+                                canvasSize,
+                                widgetSizePx * sel.scale
+                            )
                         }
                     )
-                    // only show numeric checkbox when gauge is not NUMBER
                     if (sel.gaugeType != GaugeType.NUMBER) {
                         Spacer(Modifier.width(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -220,7 +220,7 @@ fun DraggableWidget(
     Box(
         modifier = Modifier
             .offset { widget.position.toIntOffset() }
-            .size(scaledSizeDp) // exact multiple of the grid (scaled)
+            .size(scaledSizeDp)
             .background(Color.DarkGray)
             .pointerInput(canvasSize, gridPx, widget.scale) {
                 detectDragGestures(
@@ -244,7 +244,6 @@ fun DraggableWidget(
             .zIndex(if (selected) 1f else 0f),
         contentAlignment = Alignment.Center
     ) {
-        // Center label
         Text(
             widget.label,
             color = Color(widget.colorRGB),
@@ -280,7 +279,6 @@ private fun snapToGridClamped(
 private fun Modifier.drawGrid(gridPx: Float): Modifier = drawBehind {
     if (gridPx <= 0f) return@drawBehind
 
-    // vertical lines
     val cols = floor(size.width / gridPx).toInt()
     for (i in 0..cols) {
         val x = i * gridPx
@@ -292,7 +290,7 @@ private fun Modifier.drawGrid(gridPx: Float): Modifier = drawBehind {
             strokeWidth = 1f
         )
     }
-    // horizontal lines
+
     val rows = floor(size.height / gridPx).toInt()
     for (j in 0..rows) {
         val y = j * gridPx
