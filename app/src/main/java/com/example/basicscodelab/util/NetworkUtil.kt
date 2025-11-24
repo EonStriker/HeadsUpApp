@@ -13,7 +13,7 @@ import java.net.URL
 //import javax.net.ssl.HttpURLConnection
 
 suspend fun sendJsonToPi(json: JSONObject, context: Context) {
-    val url = URL("http://10.161.231.41::4000/upload")
+    val url = URL("http://10.161.231.41:4000/upload")
     try {
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
@@ -42,18 +42,17 @@ suspend fun sendJsonToPi(json: JSONObject, context: Context) {
 
 // attempt at second portion GET
 suspend fun fetchDataTypesFromPi(
-    url: String = "http://10.161.231.41::4000/data-types"
+    url: String = "http://10.161.231.41:4000/data-types"
 ): List<String> = withContext(Dispatchers.IO) {
     val connection = (URL(url).openConnection() as HttpURLConnection).apply {
         requestMethod = "GET"
-        // Prefer text, but accept anything
         setRequestProperty("Accept", "text/plain, */*;q=0.8")
         doInput = true
     }
     try {
         val body = connection.inputStream.bufferedReader().use { it.readText() }
         val bodyline = body.split("\n")[0]
-        parseCsvTypes(body)
+        parseCsvTypes(bodyline)
     } finally {
         connection.disconnect()
     }

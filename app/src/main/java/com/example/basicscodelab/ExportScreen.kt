@@ -70,9 +70,9 @@ fun ExportScreen(
                         put("x", x1080)
                         put("y", y1080)
                         put("type", widget.gaugeType.name.lowercase())
-                        put("color", String.format("#%06X", (widget.colorRGB and 0xFFFFFF)))
+                        put("color", widget.colorRGB)
                         put("scale", widget.scale)
-                        put("numeric", widget.showNumeric)
+                        put("num", widget.showNumeric)
                     }
 
                     widgetArray.put(obj)
