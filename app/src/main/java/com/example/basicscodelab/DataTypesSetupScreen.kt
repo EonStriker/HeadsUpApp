@@ -65,7 +65,7 @@ fun DataTypesSetupScreen(
                     status = "Contacting Pi…"
                     try {
                         val names = fetchDataTypesFromPi(
-                            url = "https://headsup.local:8443/data-types"
+                            url = "http://10.161.231.41:4000/data-types"
                         )
                         if (names.isNotEmpty()) {
                             availableWidgets.clear()
