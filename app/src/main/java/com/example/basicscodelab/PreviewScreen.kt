@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 fun PreviewScreen(navController: NavController, widgets: List<Widget>) {
     LockScreenOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
-    // match LayoutScreen base size: gridSizeDp (24.dp) * cellsPerWidget (4)
+    // match LayoutScreen base size  (gridSizeDp (24.dp) * cellsPerWidget (4))
     val baseSizeDp = 24.dp * 4
 
     Box(
