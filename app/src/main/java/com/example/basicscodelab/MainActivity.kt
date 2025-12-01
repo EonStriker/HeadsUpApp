@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.IntSize
 
 class MainActivity : ComponentActivity() {
 
-    // ⭐ MINIMAL FIX #1 — store canvasSize at Activity level
+
     private var canvasSize: IntSize = IntSize(1, 1)
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -81,7 +81,7 @@ class MainActivity : ComponentActivity() {
                                 selectedWidgets,
                                 widgetStates,
                             ) { newSize ->
-                                canvasSize = newSize     // store for ExportScreen
+                                canvasSize = newSize
                             }
                         }
 
