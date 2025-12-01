@@ -20,7 +20,7 @@ fun WidgetSelectionScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    // Local selection state copied from selectedWidgets
+    // state copied from selectedWidgets
     val currentSelection = remember { mutableStateListOf<String>() }
 
     // Sync initial state with passed selections
