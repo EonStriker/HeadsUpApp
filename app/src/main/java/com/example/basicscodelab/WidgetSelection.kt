@@ -14,13 +14,13 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 @Composable
 fun WidgetSelectionScreen(
     navController: NavController,
-    availableWidgets: List<String>,     
+    availableWidgets: List<String>,
     selectedWidgets: SnapshotStateList<String>,
     onWidgetsSelected: (List<String>) -> Unit
 ) {
     val scrollState = rememberScrollState()
 
-    // state copied from selectedWidgets
+    // Local selection state copied from selectedWidgets
     val currentSelection = remember { mutableStateListOf<String>() }
 
     // Sync initial state with passed selections
